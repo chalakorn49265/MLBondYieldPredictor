@@ -1,0 +1,13 @@
+
+BondYieldPrediction-ML
+
+Project Overview
+
+This project focuses on predicting bond yields using a machine learning approach. The project involves feature selection through Lasso Regression and the application of a Multi-Layer Perceptron (MLP) to predict bond yields over various time horizons (0, 5, 10, 15, 20 days).
+
+The primary goal of this project is to forecast bond yields by leveraging machine learning techniques. The project workflow involves the following key steps:
+
+	1.	Data Preprocessing: Loading and cleaning the dataset.
+	2.	Feature Selection: Utilizing Lasso Regression to identify the most important features.
+	3.	Modeling: Building and training a Multi-Layer Perceptron (MLP) to predict bond yields for the next 0, 5, 10, 15, and 20 days.
+	4.	Evaluation: Assessing the model’s performance using metrics like Mean Squared Error (MSE).
