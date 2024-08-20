@@ -1,0 +1,41 @@
+# Extracting features X and target variable y
+X = data.drop(columns = ['DATE', 'HQMCB10YRP'])
+y = data['HQMCB10YRP']
+
+# alphas stores the range of regularisation parameter from 0 to 4
+alphas = np.linspace(0, 4, 50)
+n_features = []
+
+for alpha in alphas:
+    # fit different regularisation parameter
+    lasso = Lasso(alpha=alpha)
+    lasso.fit(X,y)
+    n_selected_features = np.sum(lasso.coef_!=0)
+    #n_features stores number of features for different regularisation parameter
+    n_features.append(n_selected_features)
+
+# Plot Regularisation parameter(X) against the numeber of features(y)
+plt.figure(figsize=(10, 6))
+plt.plot(alphas, n_features, marker='o')
+plt.xlabel('Regularisation parameter')
+plt.ylabel('Number of features')
+plt.title('Regularisation parameter vs Number of Features')
+plt.grid(True)
+plt.show()
+
+# Select regularization parameters to analyze
+selected_alphas = [2, 4]
+selected_features_dict = {}
+
+for alpha in selected_alphas:
+    lasso = Lasso(alpha=alpha)
+    lasso.fit(X, y)
+    # Get the features with coefficients above 0.00012
+    relevant_features = X.columns[(np.abs(lasso.coef_) >= 0.0002)]
+    selected_features_dict[alpha] = relevant_features.tolist()
+
+# Print the relevant features for each alpha
+for alpha, features in selected_features_dict.items():
+    print(f"Alpha = {alpha}:")
+    print(features)
+    print("\n")
