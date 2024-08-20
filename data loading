@@ -1,0 +1,32 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.linear_model import Lasso
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras.models import Sequential
+import random
+
+macro = pd.read_csv('current.csv')
+tenyr_bond = pd.read_csv('10yr_bond_monthly.csv')
+  
+# Remove the rows where 'sasdate' contains the string 'Transform:'
+macro = macro[macro['sasdate'] != 'Transform:']
+
+# Convert 'sasdate' and 'DATE' columns to datetime format
+macro['sasdate'] = pd.to_datetime(macro['sasdate'], format='%m/%d/%Y', errors='coerce')
+tenyr_bond['DATE'] = pd.to_datetime(tenyr_bond['DATE'], format='%Y-%m-%d', errors='coerce')
+
+# Filter the DataFrame to only include rows from 2010 onwards
+macro = macro[macro['sasdate'] >= '1984-01-01']
+
+# Merge the DataFrames based on the 'sasdate' and 'DATE' columns
+data = tenyr_bond.merge(macro, left_on='DATE', right_on='sasdate', how='inner')
+
+data = data.drop(columns = ['sasdate'])
+data = data.ffill()
+data = data.bfill()
+  
