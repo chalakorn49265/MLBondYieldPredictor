@@ -1,0 +1,122 @@
+# List of selected features
+selected_features = ['W875RX1', 'USGOOD', 'USCONS', 'NDMANEMP', 'USTRADE', 'USFIRE', 'USGOVT', 'PERMIT', 'S&P 500']
+
+# Feature matrix X and target vector y
+X = data[selected_features]
+
+# Create the target matrix y with columns corresponding to yields at 0, 5, 10, 15, and 20 days
+y = pd.DataFrame({
+    'y_0': data['HQMCB10YRP'],  # Yield at 0 days
+    'y_5': data['HQMCB10YRP'].shift(-5),  # Yield at 5 days in the future
+    'y_10': data['HQMCB10YRP'].shift(-10),  # Yield at 10 days in the future
+    'y_15': data['HQMCB10YRP'].shift(-15),  # Yield at 15 days in the future
+    'y_20': data['HQMCB10YRP'].shift(-20)  # Yield at 20 days in the future
+})
+
+# Concatenate X and y to drop NaN rows consistently
+combined_data = pd.concat([X, y], axis=1).dropna()
+
+# Split the combined data back into X and y
+X = combined_data[selected_features]
+y = combined_data[['y_0', 'y_5', 'y_10', 'y_15', 'y_20']]
+
+# Perform the 70/30 train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Parameter for the moving window
+window_size = 100
+step_size = 10
+n_monte_carlo_runs = 10 # number of monte carlo runs within each window
+test_size = 0.2 # 20% of dataa within training window is used for validation
+
+# For storing out-of-sample errors
+errors = []
+
+# Moving window implementation within the training set
+for start in range(0, len(X_train) - window_size, step_size):
+    end = start + window_size
+    X_train_window, y_train_window = X_train.iloc[start:end], y_train.iloc[start:end]
+
+    # Perform Monte Carlo cross-validation within the window
+    monte_carlo_errors = []
+    for _ in range(n_monte_carlo_runs):
+        #split the window data into training and validation sets
+        X_train_mc, X_val_mc, y_train_mc, y_val_mc = train_test_split(X_train_window, y_train_window,test_size=test_size, random_state=None)
+        
+        # Define the Multi-layer Perceptron model with 10 hidden layers(to avoid overfitting)
+        model = Sequential()
+        model.add(Input(shape=(X_train.shape[1],)))
+        for _ in range(10):  # Adding the remaining 10 hidden layers
+            model.add(Dense(64, activation='relu'))
+        model.add(Dense(5))  # Output layer with 5 neurons for 0, 5, 10, 15, and 20 days yields
+
+        # Compile the model
+        model.compile(optimizer='adam', loss='mse')
+
+        # Train the model
+        model.fit(X_train_mc, y_train_mc, epochs=10, batch_size=16, verbose=0)
+
+        # Validate the model on the validation set
+        y_val_pred = model.predict(X_val_mc)
+        val_mse = mean_squared_error(y_val_mc, y_val_pred)
+        monte_carlo_errors.append(val_mse)
+    
+    # Average error across all Monte Carlo runs
+    avg_error = np.mean(monte_carlo_errors)
+    errors.append(avg_error)
+plt.figure(figsize=(8, 4))
+plt.plot(errors, marker='o', linestyle='-', color='r')
+plt.title("Out of Sample Errors for each Window step")
+plt.xlabel('Window Step')
+plt.ylabel('Mean Square Error')
+plt.grid(True)
+
+plt.show()
+
+# Evaluate the final model on the 30% test set
+final_model = Sequential()
+final_model.add(Input(shape=(X_train.shape[1],)))
+for _ in range(10):  # Adding the remaining 10 hidden layers
+    final_model.add(Dense(64, activation='relu'))
+final_model.add(Dense(5))  # Output layer with 5 neurons|
+
+# Compile the model
+final_model.compile(optimizer='adam', loss='mse')
+
+# Train the final model on the entire training set
+final_model.fit(X_train, y_train, epochs=10, batch_size=16, verbose=0)
+
+# Predict on the test set
+y_test_pred = final_model.predict(X_test)
+
+# Calculate MSE for each prediction (0, 5, 10, 15, 20 days)
+test_mse = mean_squared_error(y_test, y_test_pred)
+
+print(f"Mean Squared Error on Test Set: {test_mse}")
+
+# List of time horizons
+time_horizons = ['0 days', '5 days', '10 days', '15 days', '20 days']
+
+time = pd.Series(range(len(y_test))) 
+
+# Plotting the actual vs. predicted yields with rolling mean
+plt.figure(figsize=(14, 8))
+
+for i, horizon in enumerate(time_horizons):
+    plt.subplot(2, 3, i+1)  # 2x3 grid, place each plot in the grid
+
+    # Apply a rolling mean to smooth the plot
+    actual_smoothed = y_test.iloc[:, i].rolling(window=10).mean()
+    predicted_smoothed = pd.Series(y_test_pred[:, i]).rolling(window=10).mean()
+    
+    # Plot actual and predicted yields
+    plt.plot(time, actual_smoothed, label='Actual', alpha=0.6)
+    plt.plot(time, predicted_smoothed, label='Predicted', alpha=0.6)
+    
+    plt.title(f'Actual vs Predicted Yields ({horizon})')
+    plt.xlabel('Time')
+    plt.ylabel('Yield')
+    plt.legend()
+
+plt.tight_layout()
+plt.show()
