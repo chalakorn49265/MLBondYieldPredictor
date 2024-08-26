@@ -10,4 +10,4 @@ The primary goal of this project is to forecast bond yields by leveraging machin
 	1.	Data Preprocessing: Loading and cleaning the dataset.
 	2.	Feature Selection: Utilizing Lasso Regression to identify the most important features.
 	3.	Modeling: Building and training a Multi-Layer Perceptron (MLP) to predict bond yields for the next 0, 5, 10, 15, and 20 days.
-	4.	Evaluation: Assessing the model’s performance using metrics like Mean Squared Error (MSE).
+	4.	Evaluation: Assessing the model’s performance using Monte-Carlo Cross validation.
