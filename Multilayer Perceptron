@@ -29,6 +29,16 @@ step_size = 10
 n_monte_carlo_runs = 10 # number of monte carlo runs within each window
 test_size = 0.2 # 20% of dataa within training window is used for validation
 
+# Define the Multi-layer Perceptron model with 10 hidden layers(to avoid overfitting)
+mlp = Sequential()
+mlp.add(Input(shape=(X_train.shape[1],)))
+for _ in range(10):  # Adding the remaining 10 hidden layers
+    mlp.add(Dense(64, activation='relu'))
+mlp.add(Dense(5))  # Output layer with 5 neurons for 0, 5, 10, 15, and 20 days yields
+
+# Compile the model
+mlp.compile(optimizer='adam', loss='mse')
+
 # For storing out-of-sample errors
 errors = []
 
@@ -37,33 +47,28 @@ for start in range(0, len(X_train) - window_size, step_size):
     end = start + window_size
     X_train_window, y_train_window = X_train.iloc[start:end], y_train.iloc[start:end]
 
-    # Perform Monte Carlo cross-validation within the window
-    monte_carlo_errors = []
-    for _ in range(n_monte_carlo_runs):
-        #split the window data into training and validation sets
-        X_train_mc, X_val_mc, y_train_mc, y_val_mc = train_test_split(X_train_window, y_train_window,test_size=test_size, random_state=None)
-        
-        # Define the Multi-layer Perceptron model with 10 hidden layers(to avoid overfitting)
-        model = Sequential()
-        model.add(Input(shape=(X_train.shape[1],)))
-        for _ in range(10):  # Adding the remaining 10 hidden layers
-            model.add(Dense(64, activation='relu'))
-        model.add(Dense(5))  # Output layer with 5 neurons for 0, 5, 10, 15, and 20 days yields
+    # Initialize ShuffleSplit
+    ss = ShuffleSplit(n_splits=n_monte_carlo_runs, test_size=test_size, random_state=42)
 
-        # Compile the model
-        model.compile(optimizer='adam', loss='mse')
+    # Perform Monte Carlo cross validation within the window
+    monte_carlo_errors = []
+    for train_index, val_index in ss.split(X_train_window):
+        X_train_mc, X_val_mc = X_train_window.iloc[train_index], X_train_window.iloc[val_index]
+        y_train_mc, y_val_mc = y_train_window.iloc[train_index], y_train_window.iloc[val_index]
 
         # Train the model
-        model.fit(X_train_mc, y_train_mc, epochs=10, batch_size=16, verbose=0)
+        mlp.fit(X_train_mc, y_train_mc, epochs=10, batch_size=16, verbose=0)
 
         # Validate the model on the validation set
-        y_val_pred = model.predict(X_val_mc)
+        y_val_pred = mlp.predict(X_val_mc)
         val_mse = mean_squared_error(y_val_mc, y_val_pred)
         monte_carlo_errors.append(val_mse)
-    
-    # Average error across all Monte Carlo runs
+
+    # Average error across all ShuffleSplit runs
     avg_error = np.mean(monte_carlo_errors)
     errors.append(avg_error)
+
+# Ploting error vs window_steps
 plt.figure(figsize=(8, 4))
 plt.plot(errors, marker='o', linestyle='-', color='r')
 plt.title("Out of Sample Errors for each Window step")
